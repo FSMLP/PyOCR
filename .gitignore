@@ -1,0 +1,8 @@
+*.pyc
+.vscode/
+__pycache__/
+weights/
+input/
+output/
+inference_results/
+model/
