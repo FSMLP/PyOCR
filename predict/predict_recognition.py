@@ -110,7 +110,7 @@ class TextRecognizer(object):
 
             if self.spell_text_corpus != '':
                 self.spell.word_frequency.load_text_file(self.spell_text_corpus)
-
+                
 
     def resize_norm_img(self, img, max_wh_ratio):
         imgC, imgH, imgW = self.rec_image_shape
