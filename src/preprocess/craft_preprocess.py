@@ -13,7 +13,14 @@ class CRAFTPreprocessTest(object):
 
 
     def resize_image(self, im):
+
+        # im = cv2.GaussianBlur(im,(6,6),0)
+
+        kernel = np.ones((2,1), np.uint8) 
+
+
         height, width, channel = im.shape
+        im = cv2.dilate(im, kernel, iterations=1) 
 
         # magnify image size
         target_size = self.mag_ratio * max(height, width)

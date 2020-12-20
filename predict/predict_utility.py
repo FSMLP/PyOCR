@@ -249,7 +249,7 @@ def draw_ocr_box_txt(image,
             img_fraction = 1
             # font_size=1
             font_change=False
-            font_size = max(int(box_height * 0.8), 10)
+            font_size = max(int(box_height * 0.7), 10)
             font = ImageFont.truetype(font_path, font_size)
             while font.getsize(txt)[0] > img_fraction*box_width:
                 # iterate until the text size is just larger than the criteria

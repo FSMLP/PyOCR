@@ -6,3 +6,6 @@ input/
 output/
 inference_results/
 model/
+CBinput/
+CBoutput/
+*.ipynb
