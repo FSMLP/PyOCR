@@ -37,6 +37,7 @@ class TextDetector(object):
             postprocess_params["text_threshold"] = args.text_threshold
             postprocess_params["link_threshold"] = args.link_threshold
             postprocess_params["low_text"] = args.low_text
+            postprocess_params["is_dilate"] = args.is_dilate
             postprocess_params["x_dilate"] = args.x_dilate
             postprocess_params["y_dilate"] = args.y_dilate
             postprocess_params["rotated_box"] = args.rotated_box

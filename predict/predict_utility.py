@@ -42,6 +42,7 @@ def parse_args():
     
     # params for text detector
     parser.add_argument("--image_dir", type=str)
+    parser.add_argument("--output_dir", type=str, default='./output/')
     parser.add_argument("--det_algorithm", type=str, default='CRAFT')
     parser.add_argument("--det_model_dir", type=str)
     parser.add_argument("--det_max_side_len", type=float, default=960)
@@ -50,20 +51,20 @@ def parse_args():
     # CRAFT params
     """ Data PreProcessing """
     parser.add_argument(
-        '--canvas_size', default=1920, 
-        type=int, help='image size for inference')
+        '--canvas_size', default=1920,
+        type=int, help='image size for inference') #BH: 1280
     parser.add_argument(
         '--mag_ratio', default=1.5, 
-        type=float, help='image magnification ratio')
+        type=float, help='image magnification ratio') 
     """ Detection Model Specifications """
     parser.add_argument(
         '--text_threshold', 
-        default=0.7, type=float, 
+        default=0.7, type=float, #BH: 0.5
         help='text confidence threshold') #This threshold is not used in our case.
     parser.add_argument(
         '--low_text', 
         default=0.35, type=float, 
-        help='text low-bound score') #0.003 was used with 0.2-tt and 0.1-lt
+        help='text low-bound score') #0.003 was used with 0.2-tt and 0.1-lt #BH: 0.36
     parser.add_argument(
         '--link_threshold', 
         default=0.1, type=float, help='link confidence threshold')
@@ -71,7 +72,11 @@ def parse_args():
         '--rotated_box', 
         type=str2bool, default=True, 
         help='use this to get rotated rectangles (bounding box)') # Currently not handling for rotated boxes
-    parser.add_argument('--x_dilate', default=1, type=int, help='left x-padding during post processing')
+    parser.add_argument(
+        '--is_dilate', 
+        type=str2bool, default=False, 
+        help='use this to specify x_dilation and y_dilation')
+    parser.add_argument('--x_dilate', default=3, type=int, help='left x-padding during post processing')
     parser.add_argument('--y_dilate', default=3, type=int, help='up y-padding during post processing')
 
 
@@ -119,11 +124,11 @@ def parse_args():
     parser.add_argument("--spell_text_corpus", type=str, default='')
 
     # params for merging resulting values
-    parser.add_argument("--merge_boxes", type=str2bool, default=False)
+    parser.add_argument("--merge_boxes", type=str2bool, default=False) # BH: True
     parser.add_argument("--merge_slope_thresh", type=float, default=0.1)
-    parser.add_argument("--merge_ycenter_thresh", type=float, default=0.5)
-    parser.add_argument("--merge_height_thresh", type=float, default=0.5)
-    parser.add_argument("--merge_width_thresh", type=float, default=1.0)
+    parser.add_argument("--merge_ycenter_thresh", type=float, default=0.5) # BH: 0.8
+    parser.add_argument("--merge_height_thresh", type=float, default=0.5) # BH: 0.6
+    parser.add_argument("--merge_width_thresh", type=float, default=1.0) # BH: 2.0
     parser.add_argument("--merge_add_margin", type=float, default=0.05)
     
 
@@ -205,6 +210,7 @@ def draw_text_det_res(dt_boxes, img_path):
     return src_im
 
 # TODO: Cut this and other sections related to rendering and paste into src/utils/output_utility.py
+# TODO: Handle exception when drawing boxes it might go out of Image
 def draw_ocr_box_txt(image,
                      boxes,
                      txts,
@@ -221,17 +227,18 @@ def draw_ocr_box_txt(image,
     draw_left = ImageDraw.Draw(img_left)
     draw_right = ImageDraw.Draw(img_right)
     for idx, (box, txt) in enumerate(zip(boxes, txts)):
+
         if scores is not None and scores[idx] < drop_score:
             continue
-        color = (random.randint(0, 255), random.randint(0, 255),
-                 random.randint(0, 255))
-        draw_left.polygon(box, fill=color)
-        draw_right.polygon(
+        color = (random.randint(0, 200), random.randint(0, 200),
+                 random.randint(0, 200))
+        draw_left.line(
             [
-                box[0][0], box[0][1], box[1][0] - 3, box[1][1], box[2][0] - 3,
-                box[2][1], box[3][0], box[3][1]
+                (box[0][0], box[0][1]), (box[1][0] - 3, box[1][1]), (box[2][0] - 3,
+                box[2][1]), (box[3][0], box[3][1]), (box[0][0], box[0][1]) 
             ],
-            outline=color)
+            fill=color, width=4)
+        
         box_height = math.sqrt((box[0][0] - box[3][0])**2 + (box[0][1] - box[3][
             1])**2)
         box_width = math.sqrt((box[0][0] - box[1][0])**2 + (box[0][1] - box[1][
@@ -245,11 +252,17 @@ def draw_ocr_box_txt(image,
                 draw_right.text(
                     (box[0][0] + 3, cur_y), unidecode.unidecode(c), fill=(0, 0, 0), font=font)
                 cur_y += char_size[1]
+            draw_right.polygon(
+            [
+                box[0][0], box[0][1], box[1][0] - 3, box[1][1], box[2][0] - 3,
+                box[2][1], box[3][0], box[3][1]
+            ],
+            outline=color)
         else:
-            img_fraction = 1
+            img_fraction = 1.05
             # font_size=1
             font_change=False
-            font_size = max(int(box_height * 0.7), 10)
+            font_size = max(int(box_height * 0.8), 10)
             font = ImageFont.truetype(font_path, font_size)
             while font.getsize(txt)[0] > img_fraction*box_width:
                 # iterate until the text size is just larger than the criteria

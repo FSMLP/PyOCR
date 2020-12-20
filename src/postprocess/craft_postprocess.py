@@ -10,6 +10,7 @@ class CRAFTPostprocessTest(object):
         self.text_threshold = params["text_threshold"]
         self.link_threshold = params["link_threshold"]
         self.low_text = params["low_text"]
+        self.is_dilate = params["is_dilate"]
         self.x_dilate = params["x_dilate"]
         self.y_dilate = params["y_dilate"]
         self.rotated_box = params["rotated_box"]
@@ -19,6 +20,8 @@ class CRAFTPostprocessTest(object):
         text_threshold = self.text_threshold
         link_threshold = self.link_threshold
         low_text = self.low_text
+
+        is_dilate = self.is_dilate
         x_dilate = self.x_dilate
         y_dilate = self.y_dilate
         rotated_box = self.rotated_box
@@ -30,19 +33,20 @@ class CRAFTPostprocessTest(object):
         # perform thresholding on greyscale map of link_score
         ret, text_score = cv2.threshold(textmap, low_text, 1, 0)
 
-        # custom kernel defined to pad the textmap strictly in the upper left region of each blob
-        center_x = int((x_dilate + 1) / 2)
-        center_y = int((y_dilate + 1) / 2)
+        if is_dilate:
+            # custom kernel defined to pad the textmap strictly in the upper left region of each blob
+            center_x = int((x_dilate + 1) / 2)
+            center_y = int((y_dilate + 1) / 2)
 
-        inner = np.ones(center_x * center_y).reshape(center_y, center_x).astype(np.uint8)
-        outer_r = np.zeros((x_dilate - center_x) * center_y).reshape(center_y, (x_dilate - center_x)).astype(np.uint8)
-        outer_d = np.zeros((x_dilate) * -1 * (center_y - y_dilate)).reshape(y_dilate - center_y, x_dilate).astype(np.uint8)
+            inner = np.ones(center_x * center_y).reshape(center_y, center_x).astype(np.uint8)
+            outer_r = np.zeros((x_dilate - center_x) * center_y).reshape(center_y, (x_dilate - center_x)).astype(np.uint8)
+            outer_d = np.zeros((x_dilate) * -1 * (center_y - y_dilate)).reshape(y_dilate - center_y, x_dilate).astype(np.uint8)
 
-        final = np.append(outer_r, inner, 1)
-        Vkernel = np.append(outer_d, final, 0)
+            final = np.append(outer_r, inner, 1)
+            Vkernel = np.append(outer_d, final, 0)
 
-        # dilation is performed here
-        text_score = cv2.dilate(text_score, Vkernel, 1)
+            # dilation is performed here
+            text_score = cv2.dilate(text_score, Vkernel, 1)
 
         # perform thresholding on greyscale map of link_score
         ret, link_score = cv2.threshold(linkmap, link_threshold, 1, 0)
@@ -65,7 +69,10 @@ class CRAFTPostprocessTest(object):
             segmap[np.logical_and(link_score==1, text_score==0)] = 0   # remove link area
             x, y = stats[k, cv2.CC_STAT_LEFT], stats[k, cv2.CC_STAT_TOP]
             w, h = stats[k, cv2.CC_STAT_WIDTH], stats[k, cv2.CC_STAT_HEIGHT]
-            niter = int(math.sqrt(size * min(w, h) / (w * h)) * 2.8)
+            if is_dilate:
+                niter = int(math.sqrt(size * min(w, h) / (w * h)) * 2.4)
+            else:
+                niter = int(math.sqrt(size * min(w, h) / (w * h)) * 1.8)
             sx, ex, sy, ey = x - niter, x + w + niter + 1, y - niter, y + h + niter + 1
             # boundary check
             if sx < 0 : sx = 0

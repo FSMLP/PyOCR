@@ -1,3 +1,5 @@
+# Copyright (c) 2020 FSMLP Authors. All Rights Reserved.
+
 import detectron2
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg

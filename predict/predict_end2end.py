@@ -15,7 +15,7 @@ logger = utility.initial_logger()
 
 import cv2
 import numpy as np
-# import pandas as pd
+import pandas as pd
 from PIL import Image
 
 import predict.predict_box_orientation as predict_bor
@@ -35,6 +35,7 @@ class TextSystem(object):
             self.text_classifier = predict_bor.TextClassifier(args) 
         
         self.merge_boxes = args.merge_boxes
+
         if self.merge_boxes:
             self.merge_slope_thresh = args.merge_slope_thresh
             self.merge_ycenter_thresh = args.merge_ycenter_thresh
@@ -303,7 +304,6 @@ def main(args):
         print("Predict time of %s: %.3fs" % (image_file, elapse))
 
         drop_score = 0.5
-        dt_num = len(dt_boxes)
 
         if is_visualize:
             image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
@@ -318,7 +318,7 @@ def main(args):
                 scores,
                 drop_score=drop_score,
                 font_path=font_path)
-            draw_img_save = "./inference_results/"
+            draw_img_save = args.output_dir
             if not os.path.exists(draw_img_save):
                 os.makedirs(draw_img_save)
             cv2.imwrite(
@@ -327,6 +327,15 @@ def main(args):
             print("The visualized image saved in {}".format(
                 os.path.join(draw_img_save, os.path.basename(image_file))))
 
+        np_boxes = (np.rint(np.asarray(boxes))).astype(int)
+        stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts)))
+        df = pd.DataFrame(np.transpose(stacked), columns=["startX", "endX", "startY", "endY", "OCR"])
+        csv_save = args.output_dir
+        if not os.path.exists(csv_save):
+            os.makedirs(csv_save)
+        csv_file = csv_save + os.path.basename(image_file)[:-4] + '.csv'
+        df.to_csv(csv_file, index=False)
+        
 
 if __name__ == "__main__":
     start = time.time()
