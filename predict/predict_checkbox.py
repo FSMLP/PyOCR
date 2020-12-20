@@ -54,8 +54,6 @@ def resize_aspect_ratio(img, filename, square_size):
     resized = np.zeros((square_size, square_size, c), dtype=np.float32) + 255
     resized[extra_u:targeth+extra_u, extra_l:targetw+extra_l, :] = proc
 
-    # cv2.imwrite('test2/'+ filename, resized)
-
     return resized, ratio, extra_l, extra_u
 
 def adjust_box_size(boxes, ratio, extral, extrau, ratio_net = 1):
