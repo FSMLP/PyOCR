@@ -80,7 +80,7 @@ class TextSystem(object):
         bbox_num = len(img_crop_list)
         for bno in range(bbox_num):
             cv2.imwrite("./output/img_crop_%d.jpg" % bno, img_crop_list[bno])
-            print(bno, rec_res[bno])
+            # print(bno, rec_res[bno])
 
     @staticmethod
     def sorted_boxes(dt_boxes):
@@ -249,7 +249,7 @@ class TextSystem(object):
     def __call__(self, img):
         ori_im = img.copy()
         dt_boxes, elapse = self.text_detector(img)
-        print("dt_boxes num : {}, elapse : {}".format(len(dt_boxes), elapse))
+        # print("dt_boxes num : {}, elapse : {}".format(len(dt_boxes), elapse))
         if dt_boxes is None:
             return None, None
         img_crop_list = []
@@ -264,12 +264,12 @@ class TextSystem(object):
         if self.use_box_orientation:
             img_crop_list, angle_list, elapse = self.text_classifier(
                 img_crop_list)
-            print("bor num  : {}, elapse : {}".format(
-                len(img_crop_list), elapse, angle_list))
+            # print("bor num  : {}, elapse : {}".format(
+            #     len(img_crop_list), elapse, angle_list))
 
         rec_res, elapse = self.text_recognizer(img_crop_list)
 
-        print("rec_res num  : {}, elapse : {}".format(len(rec_res), elapse))
+        # print("rec_res num  : {}, elapse : {}".format(len(rec_res), elapse))
 
         if self.merge_boxes:
             free_box, free_text, merged_box, merged_text = self.merge_text_boxes(
@@ -291,6 +291,7 @@ def main(args):
     text_sys = TextSystem(args)
     is_visualize = True
     font_path = args.vis_font_path
+    print()
     for image_file in image_file_list:
         img, flag = check_and_read_gif(image_file)
         if not flag:
@@ -324,20 +325,22 @@ def main(args):
             cv2.imwrite(
                 os.path.join(draw_img_save, os.path.basename(image_file)),
                 draw_img[:, :, ::-1])
-            print("The visualized image saved in {}".format(
+            print("Output image saved in {}".format(
                 os.path.join(draw_img_save, os.path.basename(image_file))))
 
         np_boxes = (np.rint(np.asarray(boxes))).astype(int)
         stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts)))
-        df = pd.DataFrame(np.transpose(stacked), columns=["startX", "endX", "startY", "endY", "OCR"])
+        df = pd.DataFrame(np.transpose(stacked), columns=["startX", "startY", "endX", "endY", "OCR"])
         csv_save = args.output_dir
         if not os.path.exists(csv_save):
             os.makedirs(csv_save)
         csv_file = csv_save + os.path.basename(image_file)[:-4] + '.csv'
         df.to_csv(csv_file, index=False)
+        print('---------------------------------------------------------------')
         
 
 if __name__ == "__main__":
     start = time.time()
     main(utility.parse_args())
     print(f'Total time: {time.time() - start} s')
+    print()

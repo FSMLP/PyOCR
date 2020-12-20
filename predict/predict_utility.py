@@ -41,10 +41,10 @@ def parse_args():
     parser.add_argument("--use_pdserving", type=str2bool, default=False)
     
     # params for text detector
-    parser.add_argument("--image_dir", type=str)
-    parser.add_argument("--output_dir", type=str, default='./output/')
+    parser.add_argument("--image_dir", default="./input/", type=str)
+    parser.add_argument("--output_dir", default='./output/', type=str)
     parser.add_argument("--det_algorithm", type=str, default='CRAFT')
-    parser.add_argument("--det_model_dir", type=str)
+    parser.add_argument("--det_model_dir", type=str, default="./weights/multi_det_craft_infer")
     parser.add_argument("--det_max_side_len", type=float, default=960)
     parser.add_argument("--det_render", type=str2bool, default=True)
 
@@ -82,7 +82,7 @@ def parse_args():
 
     # params for text classifier
     parser.add_argument("--use_box_orientation", type=str2bool, default=False)
-    parser.add_argument("--bor_model_dir", type=str)
+    parser.add_argument("--bor_model_dir", type=str, default="./weights/bor_infer/")
     parser.add_argument("--bor_image_shape", type=str, default="3, 48, 192")
     parser.add_argument("--label_list", type=list, default=['0', '180'])
     parser.add_argument("--bor_batch_num", type=int, default=30)
@@ -90,7 +90,7 @@ def parse_args():
 
     # params for text recognizer
     parser.add_argument("--rec_algorithm", type=str, default='CRNN')
-    parser.add_argument("--rec_model_dir", type=str)
+    parser.add_argument("--rec_model_dir", type=str, default="./weights/multi_rec_crnn_infer/")
     parser.add_argument("--rec_render", type=str2bool, default=True)
     parser.add_argument("--rec_image_shape", type=str, default="3, 32, 320")
     parser.add_argument("--rec_char_type", type=str, default='ch')

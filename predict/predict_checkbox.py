@@ -26,7 +26,7 @@ parser.add_argument('--threshold', default=0.8, type=float, help='confidence thr
 parser.add_argument('--square_size', default=1024, type=int, help='image input resize')
 parser.add_argument('--input_folder', default='CBinput/', type=str, help='folder path to input images')
 parser.add_argument('--output_folder', default='CBoutput/', type=str, help='folder path to results')
-parser.add_argument('--cpu', default=True, type=str2bool, help='Use cpu for inference')
+parser.add_argument('--cpu', default=False, type=str2bool, help='Use cpu for inference')
 
 args = parser.parse_args()
 
@@ -97,6 +97,7 @@ if __name__ == "__main__":
         boxes = adjust_box_size(l1, ratio, extral, extrau)
 
         txtfile = open(result_folder+filename[:-4]+'.csv', 'w')
+        txtfile.write('startX,startY,endX,endY\r\n')
         for i,box in enumerate(boxes):
             poly = np.array(box).astype(np.int32).reshape((-1))
             poly.reshape(-1,2)
@@ -108,4 +109,4 @@ if __name__ == "__main__":
         cv2.imwrite(result_folder+filename, img)
 
     print()
-    print("elapsed time : {}s".format(time.time() - t))
+    print("Total time: {} s".format(time.time() - t))
