@@ -19,7 +19,7 @@ def str2bool(v):
 
 parser = argparse.ArgumentParser(description='Checkbox Detection')
 parser.add_argument('--config', default='weights/cb_detection/config.yaml', type=str, help='config_file')
-parser.add_argument('--weights', default='weights/cb_detection/X101/All_X101/model_final.pth', type=str, help='pretrained model')
+parser.add_argument('--weights', default='weights/cb_detection/model_final.pth', type=str, help='pretrained model')
 parser.add_argument('--threshold', default=0.8, type=float, help='confidence threshold')
 parser.add_argument('--square_size', default=1024, type=int, help='image input resize')
 parser.add_argument('--input_folder', default='CBinput/', type=str, help='folder path to input images')
@@ -106,6 +106,6 @@ if __name__ == "__main__":
 
         txtfile.close()
         cv2.imwrite(result_folder+filename, img)
-        
+
     print()
     print("elapsed time : {}s".format(time.time() - t))
