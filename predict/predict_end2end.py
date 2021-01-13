@@ -329,11 +329,11 @@ def main(args):
                 scores,
                 drop_score=drop_score,
                 font_path=font_path)
-            draw_img_save = args.output_dir
-            if not os.path.exists(draw_img_save):
-                os.makedirs(draw_img_save)
+            img_fold = args.output_dir + 'annotated_imgs/'
+            if not os.path.exists(img_fold):
+                os.makedirs(img_fold)
             cv2.imwrite(
-                os.path.join(draw_img_save, os.path.basename(image_file)),
+                os.path.join(img_fold, os.path.basename(image_file)),
                 draw_img[:, :, ::-1])
 
             np_boxes = (np.rint(np.asarray(boxes))).astype(int)
@@ -348,14 +348,17 @@ def main(args):
                 stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts)))
                 df = pd.DataFrame(np.transpose(stacked), columns=["startX", "startY", "endX", "endY", "OCR"])
             
-            save_fold = args.output_dir
-            if not os.path.exists(save_fold):
-                os.makedirs(save_fold)
-            csv_file = save_fold + os.path.basename(image_file)[:-4] + '.csv'
+            csv_fold = args.output_dir + 'csvs/'
+            if not os.path.exists(csv_fold):
+                os.makedirs(csv_fold)
+            csv_file = csv_fold + os.path.basename(image_file)[:-4] + '.csv'
             df.to_csv(csv_file, index=False)
             
             if args.print_to_excel:
-                excel_file = save_fold + os.path.basename(image_file)[:-4] + '.xlsx' 
+                excel_fold = args.output_dir + 'excelsheets/'
+                if not os.path.exists(excel_fold):
+                    os.makedirs(excel_fold)
+                excel_file = excel_fold + os.path.basename(image_file)[:-4] + '.xlsx' 
                 excelbook = xw.Workbook(excel_file)
                 excelsheet = excelbook.add_worksheet('Sheet1')
                 excelsheet.set_column(4,4,31)
@@ -364,16 +367,16 @@ def main(args):
                 excelsheet.set_default_row(15)
                 
                 bold = excelbook.add_format({'bold':True})
-                excelsheet.write(0,0,'start_X',bold)
-                excelsheet.write(0,1,'start_Y',bold)
-                excelsheet.write(0,2,'end_X',bold)
-                excelsheet.write(0,3,'end_Y',bold)
+                excelsheet.write(0,0,'startX',bold)
+                excelsheet.write(0,1,'startY',bold)
+                excelsheet.write(0,2,'endX',bold)
+                excelsheet.write(0,3,'endY',bold)
                 excelsheet.write(0,4,'Image',bold)
                 excelsheet.write(0,5,'Text',bold)
                 excelsheet.write(0,6,'Ground_Truth',bold)
                 excelsheet.write(0,7,'Label',bold)
                 
-                box_fold = save_fold + os.path.basename(image_file)[:-4]
+                box_fold = args.output_dir + 'boxes/' + os.path.basename(image_file)[:-4]
                 if not os.path.exists(box_fold):
                     os.makedirs(box_fold)
                 else:
