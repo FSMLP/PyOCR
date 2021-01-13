@@ -3,7 +3,7 @@
 import detectron2
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
-# from detectron2.utils.visualizer import Visualizer
+from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
 from detectron2.utils.visualizer import ColorMode
 from detectron2.data.datasets import register_coco_instances
@@ -73,6 +73,7 @@ if __name__ == "__main__":
     cfg.merge_from_file(args.config)
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = args.threshold
     cfg.MODEL.WEIGHTS = args.weights
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
     if args.cpu:
         cfg.MODEL.DEVICE='cpu'
     predictor = DefaultPredictor(cfg)
@@ -85,11 +86,12 @@ if __name__ == "__main__":
         outputs = predictor(resized)
 
         ### Use this when visualizing raw images
-        # v = Visualizer(resized[:, :, ::-1],scale=1)
-        # out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-        # cv2.imwrite('out/'+filename, out.get_image()[:,:,::-1])
+        v = Visualizer(resized[:, :, ::-1],scale=1)
+        out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
+        cv2.imwrite(result_folder+'label_'+filename, out.get_image()[:,:,::-1])
 
         instances = outputs["instances"].to("cpu")
+        print(instances)
         l1 = []
         for i in (instances.pred_boxes):
             l1.append(np.split(np.asarray(i), 2))

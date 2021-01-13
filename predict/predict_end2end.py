@@ -5,6 +5,7 @@ import sys
 import math
 import time
 import copy
+import tqdm
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(__dir__)
@@ -13,6 +14,7 @@ sys.path.append(os.path.abspath(os.path.join(__dir__, '..')))
 import predict.predict_utility as utility
 logger = utility.initial_logger()
 
+import xlsxwriter as xw
 import cv2
 import numpy as np
 import pandas as pd
@@ -23,6 +25,7 @@ import predict.predict_recognition as predict_rec
 import predict.predict_detection as predict_det
 from predict.predict_utility import draw_ocr_box_txt
 from src.utils.input_utility import get_image_file_list, check_and_read_gif
+import shutil
 
 
 class TextSystem(object):
@@ -131,11 +134,10 @@ class TextSystem(object):
                 x_min = min([poly[0],poly[2],poly[4],poly[6]])
                 y_max = max([poly[1],poly[3],poly[5],poly[7]])
                 y_min = min([poly[1],poly[3],poly[5],poly[7]])
-                horizontal_list.append([x_min, x_max, y_min, y_max, 0.5*(y_min+y_max), y_max-y_min, rec_res[i][0], rec_res[i][1]])
+                horizontal_list.append([x_min, x_max, y_min, y_max, 0.5*(y_min+y_max), y_max-y_min, rec_res[i][0], rec_res[i][1],str(poly)])
             else:
                 height = np.linalg.norm( [poly[6]-poly[0],poly[7]-poly[1]])
                 margin = int(1.44*add_margin*height)
-
                 theta13 = abs(np.arctan( (poly[1]-poly[5])/np.maximum(10, (poly[0]-poly[4]))))
                 theta24 = abs(np.arctan( (poly[3]-poly[7])/np.maximum(10, (poly[2]-poly[6]))))
                 # do I need to clip minimum, maximum value here?
@@ -149,7 +151,7 @@ class TextSystem(object):
                 y4 = poly[7] + np.sin(theta24)*margin
 
                 free_list_box.append(np.array([[x1,y1],[x2,y2],[x3,y3],[x4,y4]]))
-                free_list_text.append(rec_res[i])
+                free_list_text.append([rec_res[i][0], rec_res[i][1],str(poly), rec_res[i][0]])
 
         horizontal_list = sorted(horizontal_list, key=lambda item: item[4])
 
@@ -184,7 +186,7 @@ class TextSystem(object):
                 _x1 = _x2 = box[1]+margin
                 _y2 = _y3 = box[3]+margin
                 merged_list_box.append(np.array([[_x0,_y0],[_x1,_y1],[_x2,_y2],[_x3,_y3]]))
-                merged_list_text.append([box[6], box[7]])
+                merged_list_text.append([box[6], box[7], box[8], box[6]])
             else: # multiple boxes per line
                 boxes = sorted(boxes, key=lambda item: item[0])
 
@@ -212,6 +214,8 @@ class TextSystem(object):
                         y_max = max(mbox, key=lambda x: x[3])[3]
                         text_comb = str(mbox[0][6]) if isinstance(mbox[0][6], str) else ''
                         sum_score = mbox[0][7]
+                        box_id = str(mbox[0][8])
+                        text_id = str(mbox[0][6]) if isinstance(mbox[0][6], str) else ''
                         for val in range(len(mbox)-1):
                             if isinstance(mbox[val+1][6], str):
                                 strin = mbox[val+1][6]
@@ -219,7 +223,8 @@ class TextSystem(object):
                                 strin = ''
                             text_comb += ' ' + strin
                             sum_score += mbox[val+1][7]
-
+                            box_id += '|||' + str(mbox[val+1][8])
+                            text_id += '|||' + strin 
                         avg_score = sum_score / len(mbox)
                         margin = int(add_margin*(y_max - y_min))
 
@@ -229,7 +234,7 @@ class TextSystem(object):
                         _x1 = _x2 = x_max+margin
                         _y2 = _y3 = y_max+margin
                         merged_list_box.append(np.array([[_x0,_y0],[_x1,_y1],[_x2,_y2],[_x3,_y3]]))
-                        merged_list_text.append([text_comb, avg_score])
+                        merged_list_text.append([text_comb, avg_score, box_id, text_id])
 
                     else: # non adjacent box in same line
                         box = mbox[0]
@@ -241,7 +246,7 @@ class TextSystem(object):
                         _x1 = _x2 = box[1]+margin
                         _y2 = _y3 = box[3]+margin
                         merged_list_box.append(np.array([[_x0,_y0],[_x1,_y1],[_x2,_y2],[_x3,_y3]]))
-                        merged_list_text.append([box[6], box[7]])
+                        merged_list_text.append([box[6], box[7], box[8], box[6]])
 
         # may need to check if box is really in image
         return free_list_box, free_list_text, merged_list_box, merged_list_text
@@ -291,8 +296,14 @@ def main(args):
     text_sys = TextSystem(args)
     is_visualize = True
     font_path = args.vis_font_path
-    print()
+    
+    outer = tqdm.tqdm(total=len(image_file_list), desc=f'Folder: {args.image_dir}', unit='file', position=0, colour='green')
+    
+    file_log = tqdm.tqdm(total=0, position=1, bar_format='{desc}')
+    
     for image_file in image_file_list:
+        
+        file_name = os.path.basename(image_file)
         img, flag = check_and_read_gif(image_file)
         if not flag:
             img = cv2.imread(image_file)
@@ -302,16 +313,15 @@ def main(args):
         starttime = time.time()
         dt_boxes, rec_res = text_sys(img)
         elapse = time.time() - starttime
-        print("Predict time of %s: %.3fs" % (image_file, elapse))
 
+        file_log.set_description_str(f'Current File:\t{file_name}\t\t||\tTotal Bounding Boxes:\t{len(rec_res)}')
+        
         drop_score = 0.5
-
         if is_visualize:
             image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
             boxes = dt_boxes
             txts = [rec_res[i][0] for i in range(len(rec_res))]
             scores = [rec_res[i][1] for i in range(len(rec_res))]
-
             draw_img = draw_ocr_box_txt(
                 image,
                 boxes,
@@ -325,22 +335,83 @@ def main(args):
             cv2.imwrite(
                 os.path.join(draw_img_save, os.path.basename(image_file)),
                 draw_img[:, :, ::-1])
-            print("Output image saved in {}".format(
-                os.path.join(draw_img_save, os.path.basename(image_file))))
 
-        np_boxes = (np.rint(np.asarray(boxes))).astype(int)
-        stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts)))
-        df = pd.DataFrame(np.transpose(stacked), columns=["startX", "startY", "endX", "endY", "OCR"])
-        csv_save = args.output_dir
-        if not os.path.exists(csv_save):
-            os.makedirs(csv_save)
-        csv_file = csv_save + os.path.basename(image_file)[:-4] + '.csv'
-        df.to_csv(csv_file, index=False)
-        print('---------------------------------------------------------------')
-        
+            np_boxes = (np.rint(np.asarray(boxes))).astype(int)
+            
+            if args.merge_boxes:
+                box_ids = [rec_res[i][2] for i in range(len(rec_res))]
+                txt_ids = [rec_res[i][3] for i in range(len(rec_res))]
+                stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts), np.asarray(box_ids), np.asarray(txt_ids)))
+                df = pd.DataFrame(np.transpose(stacked), columns=["startX", "startY", "endX", "endY", "OCR", "BoxIDs", "TextIDs"])
+                
+            else:
+                stacked = np.stack((np_boxes[:,0,0], np_boxes[:,0,1], np_boxes[:,2,0], np_boxes[:,2,1], np.asarray(txts)))
+                df = pd.DataFrame(np.transpose(stacked), columns=["startX", "startY", "endX", "endY", "OCR"])
+            
+            save_fold = args.output_dir
+            if not os.path.exists(save_fold):
+                os.makedirs(save_fold)
+            csv_file = save_fold + os.path.basename(image_file)[:-4] + '.csv'
+            df.to_csv(csv_file, index=False)
+            
+            if args.print_to_excel:
+                excel_file = save_fold + os.path.basename(image_file)[:-4] + '.xlsx' 
+                excelbook = xw.Workbook(excel_file)
+                excelsheet = excelbook.add_worksheet('Sheet1')
+                excelsheet.set_column(4,4,31)
+                excelsheet.set_column(5,5,25)
+                excelsheet.set_column(6,7,20)
+                excelsheet.set_default_row(15)
+                
+                bold = excelbook.add_format({'bold':True})
+                excelsheet.write(0,0,'start_X',bold)
+                excelsheet.write(0,1,'start_Y',bold)
+                excelsheet.write(0,2,'end_X',bold)
+                excelsheet.write(0,3,'end_Y',bold)
+                excelsheet.write(0,4,'Image',bold)
+                excelsheet.write(0,5,'Text',bold)
+                excelsheet.write(0,6,'Ground_Truth',bold)
+                excelsheet.write(0,7,'Label',bold)
+                
+                box_fold = save_fold + os.path.basename(image_file)[:-4]
+                if not os.path.exists(box_fold):
+                    os.makedirs(box_fold)
+                else:
+                    shutil.rmtree(box_fold)
+                    os.makedirs(box_fold)
+                for i in range(np_boxes.shape[0]):
+                    excelsheet.write(i+1,0,np_boxes[i,0,0])
+                    excelsheet.write(i+1,1,np_boxes[i,0,1])
+                    excelsheet.write(i+1,2,np_boxes[i,2,0])
+                    excelsheet.write(i+1,3,np_boxes[i,2,1])
+                    excelsheet.write(i+1,5,txts[i])
+                    excelsheet.write(i+1,6,'---')
+                    excelsheet.write(i+1,7,'O')
+                    
+                    #extract roi from the image
+                    roi = img[np_boxes[i,0,1]:np_boxes[i,2,1], np_boxes[i,0,0]:np_boxes[i,2,0], :]
+                    
+                    try:
+                        h,w,_=roi.shape
+                        height = 20
+                        ratio = height/h
+                        width = int(ratio*w)
+                        resized = cv2.resize(roi, (width, height), interpolation=cv2.INTER_LINEAR)
+                    except:
+                        resized = roi
+                    
+                    try: 
+                        bbox_file = os.path.join(box_fold,str(i+1)+'.jpg')
+                        cv2.imwrite(bbox_file, resized)
+                        excelsheet.insert_image(i+1, 4, bbox_file, {'x_offset':3, 'y_offset':2, 'object_position':1})
+                    except:
+                        print('Unable to write image!')
+                
+                excelbook.close()   
+            
+        outer.update(1)
+            
 
 if __name__ == "__main__":
     start = time.time()
     main(utility.parse_args())
-    print(f'Total time: {time.time() - start} s')
-    print()

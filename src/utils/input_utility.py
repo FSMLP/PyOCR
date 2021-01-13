@@ -22,6 +22,7 @@ def get_image_file_list(img_file):
             file_path = os.path.join(img_file, single_file)
             if imghdr.what(file_path) in img_end:
                 imgs_lists.append(file_path)
+    
     if len(imgs_lists) == 0:
         raise Exception("not found any img file in {}".format(img_file))
     return imgs_lists

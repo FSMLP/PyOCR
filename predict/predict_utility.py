@@ -39,6 +39,7 @@ def parse_args():
     parser.add_argument("--enable_mkldnn", type=str2bool, default=False)
     parser.add_argument("--use_zero_copy_run", type=str2bool, default=False)    
     parser.add_argument("--use_pdserving", type=str2bool, default=False)
+    parser.add_argument("--print_to_excel", type=str2bool, default=False)
     
     # params for text detector
     parser.add_argument("--image_dir", default="./input/", type=str)
