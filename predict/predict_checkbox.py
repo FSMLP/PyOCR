@@ -27,7 +27,8 @@ parser.add_argument('--square_size', default=1024, type=int, help='image input r
 parser.add_argument('--input_folder', default='CBinput/', type=str, help='folder path to input images')
 parser.add_argument('--output_folder', default='CBoutput/', type=str, help='folder path to results')
 parser.add_argument('--cpu', default=False, type=str2bool, help='Use cpu for inference')
-
+parser.add_argument('--pred_cb', default=True, type=str2bool, help='Predict checkboxes')
+parser.add_argument('--pred_table', default=True, type=str2bool, help='Predict table')
 args = parser.parse_args()
 
 files = glob.glob(args.input_folder + "/*.jpg")
@@ -78,6 +79,9 @@ if __name__ == "__main__":
         cfg.MODEL.DEVICE='cpu'
     predictor = DefaultPredictor(cfg)
 
+    pred_table = args.pred_table
+    pred_cb = args.pred_cb
+    
     t = time.time()
     for f in files:
         img = cv2.imread(f)
@@ -97,17 +101,37 @@ if __name__ == "__main__":
             l1.append(np.split(np.asarray(i), 2))
 
         boxes = adjust_box_size(l1, ratio, extral, extrau)
+        pred_classes = (instances.pred_classes).numpy()
+        
+        if pred_cb:
+            txtfile_cb = open(result_folder+filename[:-4]+'_cb.csv', 'w')
+            txtfile_cb.write('startX,startY,endX,endY\r\n')
+        if pred_table:
+            txtfile_table = open(result_folder+filename[:-4]+'_table.csv', 'w')
+            txtfile_table.write('startX,startY,endX,endY\r\n')
+        pred_dict = {
+            1:'table',
+            2:'cb'
+        }
+        for i,(pred_cl,box) in enumerate(zip(pred_classes,boxes)):
+            if pred_table:
+                if pred_dict[pred_cl] == 'table':                    
+                    poly = np.array(box).astype(np.int32).reshape((-1))
+                    poly.reshape(-1,2)
+                    strResult = ','.join([str(p) for p in poly]) + '\r\n'
+                    txtfile_table.write(strResult)
+                    cv2.rectangle(img, (poly[0],poly[1]), (poly[2],poly[3]), (255,0,0), 6)
+            
+            if pred_cb:
+                if pred_dict[pred_cl] == 'cb':                    
+                    poly = np.array(box).astype(np.int32).reshape((-1))
+                    poly.reshape(-1,2)
+                    strResult = ','.join([str(p) for p in poly]) + '\r\n'
+                    txtfile_cb.write(strResult)
+                    cv2.rectangle(img, (poly[0],poly[1]), (poly[2],poly[3]), (0,255,0), 6)
 
-        txtfile = open(result_folder+filename[:-4]+'.csv', 'w')
-        txtfile.write('startX,startY,endX,endY\r\n')
-        for i,box in enumerate(boxes):
-            poly = np.array(box).astype(np.int32).reshape((-1))
-            poly.reshape(-1,2)
-            strResult = ','.join([str(p) for p in poly]) + '\r\n'
-            txtfile.write(strResult)
-            cv2.rectangle(img, (poly[0],poly[1]), (poly[2],poly[3]), (0,255,0), 6)
-
-        txtfile.close()
+        txtfile_table.close()
+        txtfile_cb.close()
         cv2.imwrite(result_folder+filename, img)
 
     print()

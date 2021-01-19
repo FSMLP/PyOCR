@@ -15,7 +15,7 @@ import onnxruntime
 from paddle.fluid.core import PaddleTensor
 from paddle.fluid.core import AnalysisConfig
 from paddle.fluid.core import create_paddle_predictor
-
+import multiprocessing
 
 def initial_logger():
     FORMAT = '%(asctime)s-%(levelname)s: %(message)s'
@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument("--use_zero_copy_run", type=str2bool, default=False)    
     parser.add_argument("--use_pdserving", type=str2bool, default=False)
     parser.add_argument("--print_to_excel", type=str2bool, default=False)
-    
+    parser.add_argument("--checkbox_dir", default="", type=str)
     # params for text detector
     parser.add_argument("--image_dir", default="./input/", type=str)
     parser.add_argument("--output_dir", default='./output/', type=str)
@@ -145,7 +145,7 @@ def create_predictor_onnx(args, mode):
     if not os.path.exists(model_file_path):
         logger.info("not find model file path {}".format(model_file_path))
         sys.exit(0)
-    
+
     session = onnxruntime.InferenceSession(model_file_path)
     return session
 

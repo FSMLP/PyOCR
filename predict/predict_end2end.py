@@ -251,9 +251,11 @@ class TextSystem(object):
         # may need to check if box is really in image
         return free_list_box, free_list_text, merged_list_box, merged_list_text
 
-    def __call__(self, img):
+    def __call__(self, img, cboxes=None):
         ori_im = img.copy()
         dt_boxes, elapse = self.text_detector(img)
+
+        # if self.merge_checkbox:
         # print("dt_boxes num : {}, elapse : {}".format(len(dt_boxes), elapse))
         if dt_boxes is None:
             return None, None
@@ -274,6 +276,10 @@ class TextSystem(object):
 
         rec_res, elapse = self.text_recognizer(img_crop_list)
 
+        if cboxes:
+            rec_cbox = [["##CB##",1] for _ in range(len(cboxes))]
+            dt_boxes.extend(cboxes)
+            rec_res.extend(rec_cbox)
         # print("rec_res num  : {}, elapse : {}".format(len(rec_res), elapse))
 
         if self.merge_boxes:
@@ -311,7 +317,23 @@ def main(args):
             logger.info("error in loading image:{}".format(image_file))
             continue
         starttime = time.time()
-        dt_boxes, rec_res = text_sys(img)
+        
+        if args.checkbox_dir !='':
+            cbox_file = args.checkbox_dir + file_name[:-4] + '_cb.csv'
+            df = pd.read_csv(cbox_file)
+            x1 = df[['startX', 'startY']].values
+            x3 = df[['endX', 'endY']].values
+            x4 = df[['startX', 'endY']].values
+            x2 = df[['endX', 'startY']].values
+            x1 = np.expand_dims(x1, axis=1)
+            x2 = np.expand_dims(x2, axis=1)
+            x3 = np.expand_dims(x3, axis=1)
+            x4 = np.expand_dims(x4, axis=1)
+            cboxes = np.hstack((x1,x2,x3,x4))
+            dt_boxes, rec_res = text_sys(img, cboxes.tolist())
+        
+        else:
+            dt_boxes, rec_res = text_sys(img)
         elapse = time.time() - starttime
 
         file_log.set_description_str(f'Current File:\t{file_name}\t\t||\tTotal Bounding Boxes:\t{len(rec_res)}')

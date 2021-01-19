@@ -13,7 +13,6 @@ from src.preprocess.craft_preprocess import CRAFTPreprocessTest
 from src.postprocess.craft_postprocess import CRAFTPostprocessTest
 from src.utils.input_utility import get_image_file_list, check_and_read_gif
 
-import onnxruntime
 import cv2
 import numpy as np
 import math
